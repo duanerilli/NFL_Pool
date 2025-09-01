@@ -12,33 +12,23 @@ export default function SignUp() {
 
   const handleSignUp = async () => {
     setError("");
-
-    // 1) Create Supabase Auth user
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+  
+    // Create Supabase Auth user
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      // if you want your trigger to read a username from metadata:
-      options: { data: { username } },
     });
-
+  
     if (signUpError) {
       setError(signUpError.message);
       return;
     }
-
-    // 2) Insert into public.users (only if you STILL need to—if you have a trigger, this can be skipped)
-    const userId = signUpData?.user?.id;
-    if (userId) {
-      const { error: insertError } = await supabase.from("users").insert([
-        { id: userId, name: username, email },
-      ]);
-      if (insertError) {
-        setError(insertError.message);
-        return;
-      }
-    }
-
-    // 3) Go to dashboard
+  
+    // If you are using a trigger on Supabase to insert into `public.users`,
+    // you don’t need to manually insert into the `users` table here.
+    // Otherwise, you would do that part below.
+    
+    // Navigate to dashboard after signup
     navigate("/dashboard");
   };
 
