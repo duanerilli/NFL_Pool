@@ -5,33 +5,41 @@ import { useNavigate } from "react-router-dom";
 
 export default function SignUp() {
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail]     = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
   const navigate = useNavigate();
 
   const handleSignUp = async () => {
     setError("");
-    setLoading(true);
-    try {
-      // 1) Create Supabase Auth user + send name in metadata
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: username } }, // <-- trigger reads this
-      });
-      if (signUpError) throw signUpError;
 
-      // 2) DO NOT insert into public.users here — the trigger handles it
+    // 1) Create Supabase Auth user
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      // if you want your trigger to read a username from metadata:
+      options: { data: { username } },
+    });
 
-      // 3) Navigate (or show “check your email” if you require confirmation)
-      navigate("/dashboard");
-    } catch (e: any) {
-      setError(e.message ?? "Sign up failed");
-    } finally {
-      setLoading(false);
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
     }
+
+    // 2) Insert into public.users (only if you STILL need to—if you have a trigger, this can be skipped)
+    const userId = signUpData?.user?.id;
+    if (userId) {
+      const { error: insertError } = await supabase.from("users").insert([
+        { id: userId, name: username, email },
+      ]);
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+    }
+
+    // 3) Go to dashboard
+    navigate("/dashboard");
   };
 
   return (
@@ -45,7 +53,6 @@ export default function SignUp() {
         onChange={(e) => setUsername(e.target.value)}
         className="w-full mb-3 p-2 border rounded"
       />
-
       <input
         type="email"
         placeholder="Email"
@@ -53,7 +60,6 @@ export default function SignUp() {
         onChange={(e) => setEmail(e.target.value)}
         className="w-full mb-3 p-2 border rounded"
       />
-
       <input
         type="password"
         placeholder="Password"
@@ -66,10 +72,9 @@ export default function SignUp() {
 
       <button
         onClick={handleSignUp}
-        disabled={loading}
-        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-4 py-2 rounded w-full"
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full"
       >
-        {loading ? "Creating..." : "Create Account"}
+        Create Account
       </button>
     </div>
   );
